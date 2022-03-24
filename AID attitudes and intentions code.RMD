@@ -1,0 +1,236 @@
+---
+title: Intoxicated Decision Strategies relate to Alcohol-Impaired Driving Attitudes and Intentions 
+author: "SDM"
+date: "8.2021"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+## Is my code elegant? No. Is it well-commented? Yes. Does it run? Usually. 
+## Please contact me at sdmr82@mail.missouri.edu. 
+## If you encounter errors, please reach out (preferably) after updating R and your packages as well as a solid google search. :)
+
+options(scipen = 999) #Turns off scientific notation
+
+# Libraries
+library(ggplot2)
+library(readxl)
+library(tidyr)
+library(dplyr)
+library(kableExtra)
+library(psych)
+library(summarytools)
+library(Hmisc)
+library(corrplot)
+library(PerformanceAnalytics)
+library(foreign)
+library(MASS)
+library(cowplot)
+library(knitr)
+library(tidyverse)
+library(haven)
+library(lmerTest)
+library(jtools)
+library(broom.mixed)
+library(effects)
+library(tidyverse) #for all data wrangling
+library(cowplot) #for manuscript ready figures
+library(lme4) #for lmer & glmer models
+library(sjPlot) #for plotting lmer and glmer mods
+library(sjmisc) 
+library(effects)
+library(sjstats) #use for r2 functions
+library(plyr)
+library(ggpubr)
+library(Rmisc)
+library(cowplot)
+library(gridExtra)
+
+# Read in data
+longddgambles <- read_excel("C:/Users/mcmul/Desktop/Online Supplement/Strategy Differences Data/longddgambles.xlsx")
+long_data <- read.csv("C:/Users/mcmul/Desktop/Online Supplement/Strategy Differences Data/long_data.csv")
+bacplotdf <- read_excel("C:/Users/mcmul/Desktop/Online Supplement/Strategy Differences Data/bacplot.xlsx")
+
+#Rename variables
+names(longddgambles)[names(longddgambles) == "asc_N_classification"] <- "AscendingClassification"
+names(longddgambles)[names(longddgambles) == "desc_N_classification"] <- "DescendingClassification"
+
+# Rename levels of classificaiton
+long_data$ascclass <-revalue(long_data$ascclass, c("non"="Non-Compensatory", "com"="Compensatory"))
+long_data$descclass <-revalue(long_data$descclass, c("non"="Non-Compensatory", "com"="Compensatory"))
+long_data$class <- revalue(long_data$class, c("nonnon" = "NN"))
+long_data$class <- revalue(long_data$class, c("noncom" = "NC"))
+long_data$class <- revalue(long_data$class, c("comnon" = "CN"))
+long_data$class <- revalue(long_data$class, c("comcom" = "CC"))
+long_data$subject <- factor(long_data$subject)
+
+# Rename levels of classificaiton
+bacplotdf$Class <- revalue(bacplotdf$Class, c("Non-Compensatory - Non-Compensatory" = "NN"))
+bacplotdf$Class <- revalue(bacplotdf$Class, c("Non-Compensatory - Compensatory" = "NC"))
+bacplotdf$Class <- revalue(bacplotdf$Class, c("Compensatory - Non-Compensatory" = "CN"))
+bacplotdf$Class <- revalue(bacplotdf$Class, c("Compensatory - Compensatory" = "CC"))
+
+longddgambles$group <- revalue(longddgambles$group, c("Non-Compensatory - Non-Compensatory" = "NN"))
+longddgambles$group <- revalue(longddgambles$group, c("Non-Compensatory - Compensatory" = "NC"))
+longddgambles$group <- revalue(longddgambles$group, c("Compensatory - Non-Compensatory" = "CN"))
+longddgambles$group <- revalue(longddgambles$group, c("Compensatory - Compensatory" = "CC"))
+
+
+```
+
+
+### Individual-level demographic information is not included to assist in preserving anonymity of participants.
+
+## BrAC by Classification Group
+```{r BAC Timecourse, echo=FALSE, warning=FALSE, message=FALSE}
+
+## BAC model to test for differences between classifications
+## BrAC was multiplied by 100 due to BrAC being a lower value and not adequately described based on raw values.
+BACmodel <- lmer(BrAC100 ~ Time + Time*Ascending + Time*Descending + Time*Ascending*Descending + Ascending*Descending + I(Time^2)*Descending + I(Time^2)*Ascending + I(Time^2)*Ascending*Descending + (Time|subject),
+                data = long_data)
+
+sjPlot:: tab_model(BACmodel)
+
+## Plot of BrAC by group; this figure uses the raw BrAC values (i.e. not transformed as in the analysis)
+Figure.1 <- long_data %>% 
+  drop_na(class)%>%
+  drop_na(Ascending)%>%
+  drop_na(Descending)%>%
+  ggplot(aes(Time, BAC, group=class, color=class))  + 
+  geom_smooth(method=lm, alpha=.2, formula= y ~ x + I(x^2)) + 
+  labs(x="Time", y = "BrAC", 
+       title="BrAC by Classification Group",
+       color="Classification") +
+  guides(color = guide_legend(order=1),
+         fill = guide_legend(order=2)) +
+    scale_x_discrete(name ="Time", 
+                    limits=c("1","2","3", "4", "5", "6", "7"))+
+  theme_bw()
+
+Figure.1
+```
+
+## Subjective Intoxication by Classification Group
+```{r Subjective Intoxication, echo=FALSE, warning=FALSE, message=FALSE}
+
+## Random effects model of subjective intoxication under intoxication by classification on each limb with timepoint and particpant as random effects
+intoxmodel <- lmer(intoxication ~ Time + Time*Ascending + Time*Descending + Time*Ascending*Descending + Ascending*Descending + I(Time^2)*Descending + I(Time^2)*Ascending + I(Time^2)*Ascending*Descending + (Time|subject), data = long_data)
+
+## Table of coefficients
+sjPlot:: tab_model(intoxmodel)
+
+## Plot of subjective intoxication under intoxication 
+Figure.2 <- long_data %>% 
+  drop_na(class)%>%
+  drop_na(Ascending)%>%
+  drop_na(Descending)%>%
+  ggplot(aes(Time, intoxication, group=class, color=class))  + 
+  geom_smooth(method=lm, alpha=.2, formula= y ~ x + I(x^2)) + 
+  labs(x="Time", y = "Subjective Intoxication", color="Classification") +
+  guides(color = guide_legend(order=1),
+         fill = guide_legend(order=2)) +
+  scale_x_discrete(name ="Time", 
+                    limits=c("1","2","3", "4", "5", "6", "7"))+
+  theme(text = element_text(size = 300))+
+  theme_bw()
+Figure.2
+```
+
+## Perceived AID Danger under Intoxication by Classification Group
+```{r AID danger, echo=FALSE, warning=FALSE, message=FALSE}
+## Random effects model of perceived AID danger under intoxication by classification on each limb with timepoint and particpant as random effects
+dangermodel <- lmer(danger ~ Time + Time*Ascending + Time*Descending + Time*Ascending*Descending + Ascending*Descending + I(Time^2)*Descending + I(Time^2)*Ascending + I(Time^2)*Ascending*Descending + (Time|subject),
+                data = long_data)
+
+## Table of coefficients
+sjPlot:: tab_model(dangermodel)
+
+## Plot of perceived AID danger under intoxication 
+Figure.3 <- long_data %>% 
+  drop_na(Descending)%>%
+  drop_na(Ascending)%>%
+  ggplot(aes(Time, danger, group=class, color=class))  + 
+  geom_smooth(method=lm, alpha=.2, formula= y ~ x + I(x^2)) + 
+  labs(x="Time", y = "Perceived Dangerousness", color="Classification") +
+  guides(color = guide_legend(order=1),
+         fill = guide_legend(order=2)) +
+    scale_x_discrete(name ="Time", 
+                    limits=c("1","2","3", "4", "5", "6", "7"))+
+  theme_bw()
+Figure.3
+
+## Legend formatting for grouped plot
+#Figure.2 <- Figure.2 + theme(legend.position = "bottom")
+#Figure.3 <- Figure.3 + theme(legend.position="none")
+## Crease grouped plot
+#grid.arrange(Figure.2, Figure.3, ncol=2, nrow = 1, 
+            # layout_matrix = rbind(c(1,2), c(3,3)),
+            # widths = c(5,5), heights = c(2))
+
+```
+
+## AID Attitudes by Classification Group
+```{r AID Attitudes, echo=FALSE, warning=FALSE, message=FALSE}
+
+## Regression model investigating main effects and interaction of classification on the ascending and descending limb as it relates to sober perceptions of AID dangerousness
+basedangmod <- longddgambles %>%
+  lm(baselinedanger ~ AscendingClassification + DescendingClassification + AscendingClassification*DescendingClassification,.)
+
+## Table of coefficients
+sjPlot:: tab_model(basedangmod)
+
+## Plot of means and standard error for each classification group
+basedangplot <- summarySE(longddgambles, measurevar="baselinedanger", groupvars=c("group"), na.rm = TRUE)
+Figure.4 <- basedangplot %>%
+  drop_na(group) %>%
+ggplot(aes(x=group, y=baselinedanger, fill=group)) + 
+    geom_bar(position=position_dodge(), stat="identity",
+             colour="black", # Use black outlines,
+             size=.3) +      # Thinner lines
+    geom_errorbar(aes(ymin=baselinedanger-se, ymax=baselinedanger+se),
+                  size=.3,    # Thinner lines
+                  width=.2,
+                  position=position_dodge(.9)) +
+    xlab("Classification") +
+    ylab("Perceived AID Danger") +
+    scale_fill_hue(name="group") +
+    ggtitle("Perceived AID Danger by Classification Group") +
+    theme_bw()
+Figure.4
+
+```
+
+
+### Willingness to drive under intoxication
+```{r AID Intentions: BrAC, echo=FALSE, warning=FALSE, message=FALSE}
+
+## Regression model investigating main effects and interaction of classification on the ascending and descending limb as it relates to the highest BrAC a person would be willing to drive
+BACdrivemodel <- longddgambles %>%
+  lm(DriveBAC ~ AscendingClassification + DescendingClassification + AscendingClassification*DescendingClassification,.)
+
+## Table of coefficients
+sjPlot:: tab_model(BACdrivemodel, digits.p = 4)
+
+## Plot of means and standard error for each classification group
+BACbarplot <- summarySE(bacplotdf, measurevar="BAC", groupvars=c("Class"), na.rm = TRUE)
+Figure.5 <- BACbarplot %>%
+  drop_na(Class) %>%
+ggplot(aes(x=Class, y=BAC, fill=Class)) + 
+    geom_bar(position=position_dodge(), stat="identity",
+             colour="black", # Use black outlines,
+             size=.3) +      # Thinner lines
+    geom_errorbar(aes(ymin=BAC-se, ymax=BAC+se),
+                  size=.3,    # Thinner lines
+                  width=.2,
+                  position=position_dodge(.9)) +
+    xlab("Classification") +
+    ylab("BrAC") +
+    ggtitle("Highest BrAC Willing to Drive by  Classification Group") +
+    theme_bw()
+Figure.5
+
+```
